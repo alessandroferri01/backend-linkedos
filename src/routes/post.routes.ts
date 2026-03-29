@@ -9,6 +9,7 @@ router.use(authenticate);
 
 router.post('/generate', validate(generatePostSchema), postController.generate);
 router.get('/', postController.getAll);
+router.get('/:id', validate(deletePostSchema), postController.getById);
 router.delete('/:id', validate(deletePostSchema), postController.delete);
 
 export default router;

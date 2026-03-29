@@ -44,7 +44,7 @@ export const aiService = {
           { role: 'user', content: buildPrompt(input) },
         ],
         temperature: 0.8,
-        max_tokens: 1000,
+        max_completion_tokens: 1000,
       });
 
       const content = response.choices[0]?.message?.content;

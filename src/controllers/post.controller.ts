@@ -25,6 +25,16 @@ export const postController = {
     }
   },
 
+  async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+      const post = await postService.getById(id, req.user!.userId);
+      sendSuccess(res, post);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params as { id: string };

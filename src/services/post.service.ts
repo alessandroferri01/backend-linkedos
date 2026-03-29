@@ -41,6 +41,17 @@ export const postService = {
     return postRepository.findByUserId(userId);
   },
 
+  async getById(postId: string, userId: string) {
+    const post = await postRepository.findById(postId);
+    if (!post) {
+      throw new NotFoundError('Post not found', 'POST_NOT_FOUND');
+    }
+    if (post.userId !== userId) {
+      throw new ForbiddenError('Not authorized to view this post', 'FORBIDDEN');
+    }
+    return post;
+  },
+
   async deletePost(postId: string, userId: string) {
     const post = await postRepository.findById(postId);
     if (!post) {
