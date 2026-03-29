@@ -22,4 +22,13 @@ export const authController = {
       next(error);
     }
   },
+
+  async me(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const user = await authService.me(req.user!.userId);
+      sendSuccess(res, user);
+    } catch (error) {
+      next(error);
+    }
+  },
 };

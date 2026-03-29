@@ -62,4 +62,17 @@ export const authService = {
       token,
     };
   },
+
+  async me(userId: string) {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new UnauthorizedError('User not found', 'USER_NOT_FOUND');
+    }
+    return {
+      id: user.id,
+      email: user.email,
+      subscriptionStatus: user.subscriptionStatus,
+      creditsRemaining: user.creditsRemaining,
+    };
+  },
 };

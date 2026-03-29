@@ -24,4 +24,22 @@ export const billingController = {
       next(error);
     }
   },
+
+  async verifySubscription(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await stripeService.verifyAndActivate(req.user!.userId);
+      sendSuccess(res, result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async cancelSubscription(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await stripeService.cancelSubscription(req.user!.userId);
+      sendSuccess(res, result);
+    } catch (error) {
+      next(error);
+    }
+  },
 };
