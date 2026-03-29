@@ -1,0 +1,65 @@
+import OpenAI from 'openai';
+import { ENV } from '../config';
+import { InternalError, logger } from '../utils';
+
+const openai = new OpenAI({ apiKey: ENV.OPENAI_API_KEY });
+
+interface GeneratePostInput {
+  topic: string;
+  profession?: string;
+  tone?: string;
+  targetAudience?: string;
+  writingStyle?: string;
+}
+
+function buildPrompt(input: GeneratePostInput): string {
+  const parts = [
+    `Topic: ${input.topic}`,
+    input.profession && `Profession: ${input.profession}`,
+    input.targetAudience && `Target audience: ${input.targetAudience}`,
+    input.tone && `Tone: ${input.tone}`,
+    input.writingStyle && `Writing style: ${input.writingStyle}`,
+  ].filter(Boolean);
+
+  return parts.join('\n');
+}
+
+const SYSTEM_PROMPT = `You are a LinkedIn content strategist specialized in Italian professionals.
+Create engaging LinkedIn posts following these rules:
+- Start with a strong hook (first line is crucial)
+- Use short paragraphs (1-2 sentences max)
+- Include a clear call-to-action at the end
+- Do not use emojis unless explicitly requested
+- Write in Italian unless specified otherwise
+- Keep the post between 150-300 words
+- Make the content authentic and relatable`;
+
+export const aiService = {
+  async generatePost(input: GeneratePostInput): Promise<string> {
+    try {
+      const response = await openai.chat.completions.create({
+        model: 'gpt-5.4-nano',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: buildPrompt(input) },
+        ],
+        temperature: 0.8,
+        max_tokens: 1000,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new InternalError('AI provider returned empty response');
+      }
+
+      return content;
+    } catch (error) {
+      if (error instanceof InternalError) throw error;
+
+      logger.error('AI generation failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw new InternalError('Failed to generate post content');
+    }
+  },
+};

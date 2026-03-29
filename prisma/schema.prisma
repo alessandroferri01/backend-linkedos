@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SubscriptionStatus {
+  FREE
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id                 String             @id @default(uuid())
+  email              String             @unique
+  passwordHash       String             @map("password_hash")
+  role               UserRole           @default(USER)
+  subscriptionStatus SubscriptionStatus @default(FREE) @map("subscription_status")
+  creditsRemaining   Int                @default(5) @map("credits_remaining")
+  stripeCustomerId   String?            @unique @map("stripe_customer_id")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  profile Profile?
+  posts   Post[]
+
+  @@map("users")
+}
+
+model Profile {
+  id             String  @id @default(uuid())
+  userId         String  @unique @map("user_id")
+  profession     String?
+  tone           String?
+  targetAudience String? @map("target_audience")
+  writingStyle   String? @map("writing_style")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Post {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  topic            String
+  generatedContent String   @map("generated_content") @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("posts")
+}

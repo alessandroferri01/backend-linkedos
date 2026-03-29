@@ -1,0 +1,54 @@
+import { postRepository } from '../repositories';
+import { profileRepository } from '../repositories';
+import { aiService } from './ai.service';
+import { creditService } from './credit.service';
+import { NotFoundError, ForbiddenError } from '../utils';
+
+interface GenerateInput {
+  userId: string;
+  topic: string;
+}
+
+export const postService = {
+  async generate(input: GenerateInput) {
+    const credits = await creditService.checkCredits(input.userId);
+    if (credits <= 0) {
+      throw new ForbiddenError('No credits remaining', 'NO_CREDITS');
+    }
+
+    const profile = await profileRepository.findByUserId(input.userId);
+
+    const content = await aiService.generatePost({
+      topic: input.topic,
+      profession: profile?.profession ?? undefined,
+      tone: profile?.tone ?? undefined,
+      targetAudience: profile?.targetAudience ?? undefined,
+      writingStyle: profile?.writingStyle ?? undefined,
+    });
+
+    const post = await postRepository.create({
+      userId: input.userId,
+      topic: input.topic,
+      generatedContent: content,
+    });
+
+    await creditService.decrementCredits(input.userId);
+
+    return post;
+  },
+
+  async getByUserId(userId: string) {
+    return postRepository.findByUserId(userId);
+  },
+
+  async deletePost(postId: string, userId: string) {
+    const post = await postRepository.findById(postId);
+    if (!post) {
+      throw new NotFoundError('Post not found', 'POST_NOT_FOUND');
+    }
+    if (post.userId !== userId) {
+      throw new ForbiddenError('Not authorized to delete this post', 'FORBIDDEN');
+    }
+    await postRepository.delete(postId);
+  },
+};

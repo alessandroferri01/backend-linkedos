@@ -1,0 +1,167 @@
+{
+  "info": {
+    "name": "LinkedOS API",
+    "description": "Collection completa per testare le API del backend LinkedOS.\n\nSetup:\n1. Esegui Login o Register\n2. Il token JWT viene salvato automaticamente\n3. Tutte le richieste protette usano il token automaticamente",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "postId", "value": "", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Server is healthy', () => { pm.expect(pm.response.code).to.eql(200); pm.expect(pm.response.json().status).to.eql('ok'); });"], "type": "text/javascript" } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "http://localhost:3000/health", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["health"] },
+            "description": "Verifica che il server sia attivo."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Endpoint di autenticazione. Non richiedono token.",
+      "item": [
+        {
+          "name": "Register",
+          "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 201) { const res = pm.response.json(); pm.collectionVariables.set('token', res.data.token); pm.test('User registered', () => { pm.expect(res.success).to.be.true; pm.expect(res.data.user.creditsRemaining).to.eql(5); }); }"], "type": "text/javascript" } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"nuovo@linkedos.com\",\n  \"password\": \"Password123!\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "description": "Registra un nuovo utente. Il token JWT viene salvato automaticamente."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 200) { const res = pm.response.json(); pm.collectionVariables.set('token', res.data.token); pm.test('Login successful', () => { pm.expect(res.success).to.be.true; pm.expect(res.data.token).to.be.a('string'); }); }"], "type": "text/javascript" } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@linkedos.com\",\n  \"password\": \"Test1234!\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "description": "Login con credenziali esistenti. Il token JWT viene salvato automaticamente."
+          }
+        },
+        {
+          "name": "Login — Invalid Credentials",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@linkedos.com\",\n  \"password\": \"wrongpassword\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "description": "Test login con password errata — deve restituire 401."
+          }
+        },
+        {
+          "name": "Register — Validation Error",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"short\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "description": "Test validazione — email e password non valide, deve restituire 400."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "description": "Generazione e gestione post. Richiedono token JWT.",
+      "item": [
+        {
+          "name": "Generate Post",
+          "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 201) { const res = pm.response.json(); pm.collectionVariables.set('postId', res.data.id); pm.test('Post generated', () => { pm.expect(res.success).to.be.true; pm.expect(res.data.generatedContent).to.be.a('string'); }); }"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"topic\": \"Come la leadership autentica trasforma i team tech\"\n}" },
+            "url": { "raw": "{{baseUrl}}/posts/generate", "host": ["{{baseUrl}}"], "path": ["posts", "generate"] },
+            "description": "Genera un post LinkedIn via AI. Consuma 1 credito. L'ID viene salvato in postId."
+          }
+        },
+        {
+          "name": "Get All Posts",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Posts retrieved', () => { const res = pm.response.json(); pm.expect(res.success).to.be.true; pm.expect(res.data).to.be.an('array'); });"], "type": "text/javascript" } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/posts", "host": ["{{baseUrl}}"], "path": ["posts"] },
+            "description": "Recupera tutti i post dell'utente autenticato."
+          }
+        },
+        {
+          "name": "Delete Post",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Post deleted', () => { pm.expect(pm.response.json().success).to.be.true; });"], "type": "text/javascript" } }],
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/posts/{{postId}}", "host": ["{{baseUrl}}"], "path": ["posts", "{{postId}}"] },
+            "description": "Elimina un post per ID. Usa l'ID salvato dalla generazione."
+          }
+        },
+        {
+          "name": "Generate Post — No Auth",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"topic\": \"Test senza autenticazione\"\n}" },
+            "url": { "raw": "{{baseUrl}}/posts/generate", "host": ["{{baseUrl}}"], "path": ["posts", "generate"] },
+            "description": "Test generazione senza token — deve restituire 401."
+          }
+        },
+        {
+          "name": "Generate Post — Validation Error",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"topic\": \"ab\"\n}" },
+            "url": { "raw": "{{baseUrl}}/posts/generate", "host": ["{{baseUrl}}"], "path": ["posts", "generate"] },
+            "description": "Test validazione — topic troppo corto (min 3 char), deve restituire 400."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Billing",
+      "description": "Endpoint Stripe. Create-session richiede JWT, webhook no.",
+      "item": [
+        {
+          "name": "Create Checkout Session",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/billing/create-session", "host": ["{{baseUrl}}"], "path": ["billing", "create-session"] },
+            "description": "Crea una sessione di checkout Stripe per upgrade a Pro."
+          }
+        },
+        {
+          "name": "Stripe Webhook (test)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "stripe-signature", "value": "test_signature" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"customer.subscription.created\",\n  \"data\": {\n    \"object\": {\n      \"customer\": \"cus_test\",\n      \"status\": \"active\"\n    }\n  }\n}" },
+            "url": { "raw": "{{baseUrl}}/billing/webhook", "host": ["{{baseUrl}}"], "path": ["billing", "webhook"] },
+            "description": "Simula un webhook Stripe. In produzione la signature deve essere valida."
+          }
+        }
+      ]
+    }
+  ]
+}

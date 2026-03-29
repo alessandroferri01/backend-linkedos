@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: linkedos-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: linkedos
+      POSTGRES_PASSWORD: linkedos_dev
+      POSTGRES_DB: linkedos
+    ports:
+      - "5432:5432"
+    volumes:
+      - linkedos_pgdata:/var/lib/postgresql/data
+
+volumes:
+  linkedos_pgdata:
