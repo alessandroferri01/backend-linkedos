@@ -41,4 +41,25 @@ export const authController = {
       next(error);
     }
   },
+
+  async getAIProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const profile = await authService.getAIProfile(req.user!.userId);
+      sendSuccess(res, profile);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async updateAIProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { profession, tone, targetAudience, writingStyle } = req.body;
+      const profile = await authService.updateAIProfile(req.user!.userId, {
+        profession, tone, targetAudience, writingStyle,
+      });
+      sendSuccess(res, profile);
+    } catch (error) {
+      next(error);
+    }
+  },
 };

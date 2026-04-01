@@ -34,3 +34,12 @@ export const updateProfileSchema = z.object({
     phone: z.string().max(20, 'Phone number too long').optional(),
   }),
 });
+
+export const updateAIProfileSchema = z.object({
+  body: z.object({
+    profession: z.string().max(100, 'Profession too long').optional(),
+    tone: z.string().max(50, 'Tone too long').optional(),
+    targetAudience: z.string().max(200, 'Target audience too long').optional(),
+    writingStyle: z.string().max(100, 'Writing style too long').optional(),
+  }),
+});

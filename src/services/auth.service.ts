@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import type { StringValue } from 'ms';
 import { ENV } from '../config';
-import { userRepository } from '../repositories';
+import { userRepository, profileRepository } from '../repositories';
 import { ConflictError, UnauthorizedError } from '../utils';
 import type { AuthPayload } from '../middlewares';
 
@@ -98,6 +98,29 @@ export const authService = {
       phone: user.phone,
       subscriptionStatus: user.subscriptionStatus,
       creditsRemaining: user.creditsRemaining,
+    };
+  },
+
+  async getAIProfile(userId: string) {
+    const profile = await profileRepository.findByUserId(userId);
+    return {
+      profession: profile?.profession ?? null,
+      tone: profile?.tone ?? null,
+      targetAudience: profile?.targetAudience ?? null,
+      writingStyle: profile?.writingStyle ?? null,
+    };
+  },
+
+  async updateAIProfile(
+    userId: string,
+    data: { profession?: string; tone?: string; targetAudience?: string; writingStyle?: string },
+  ) {
+    const profile = await profileRepository.update(userId, data);
+    return {
+      profession: profile.profession,
+      tone: profile.tone,
+      targetAudience: profile.targetAudience,
+      writingStyle: profile.writingStyle,
     };
   },
 };
