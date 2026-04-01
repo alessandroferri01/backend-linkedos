@@ -32,6 +32,9 @@ export const authService = {
       user: {
         id: user.id,
         email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
         subscriptionStatus: user.subscriptionStatus,
         creditsRemaining: user.creditsRemaining,
       },
@@ -56,6 +59,9 @@ export const authService = {
       user: {
         id: user.id,
         email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
         subscriptionStatus: user.subscriptionStatus,
         creditsRemaining: user.creditsRemaining,
       },
@@ -71,6 +77,25 @@ export const authService = {
     return {
       id: user.id,
       email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      subscriptionStatus: user.subscriptionStatus,
+      creditsRemaining: user.creditsRemaining,
+    };
+  },
+
+  async updateProfile(
+    userId: string,
+    data: { firstName?: string; lastName?: string; phone?: string },
+  ) {
+    const user = await userRepository.updateProfile(userId, data);
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
       subscriptionStatus: user.subscriptionStatus,
       creditsRemaining: user.creditsRemaining,
     };

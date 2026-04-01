@@ -1,5 +1,6 @@
 import { postRepository } from '../repositories';
 import { profileRepository } from '../repositories';
+import { userRepository } from '../repositories';
 import { aiService } from './ai.service';
 import { creditService } from './credit.service';
 import { NotFoundError, ForbiddenError } from '../utils';
@@ -7,6 +8,7 @@ import { NotFoundError, ForbiddenError } from '../utils';
 interface GenerateInput {
   userId: string;
   topic: string;
+  length?: 'short' | 'medium' | 'long';
 }
 
 export const postService = {
@@ -18,12 +20,22 @@ export const postService = {
 
     const profile = await profileRepository.findByUserId(input.userId);
 
+    // Only Pro users can use length other than medium
+    let length = input.length ?? 'medium';
+    if (length !== 'medium') {
+      const user = await userRepository.findById(input.userId);
+      if (user?.subscriptionStatus !== 'ACTIVE') {
+        length = 'medium';
+      }
+    }
+
     const content = await aiService.generatePost({
       topic: input.topic,
       profession: profile?.profession ?? undefined,
       tone: profile?.tone ?? undefined,
       targetAudience: profile?.targetAudience ?? undefined,
       writingStyle: profile?.writingStyle ?? undefined,
+      length,
     });
 
     const post = await postRepository.create({
@@ -37,8 +49,15 @@ export const postService = {
     return post;
   },
 
-  async getByUserId(userId: string) {
-    return postRepository.findByUserId(userId);
+  async getByUserId(options: {
+    userId: string;
+    page?: number;
+    limit?: number;
+    sortBy?: 'createdAt' | 'topic';
+    sortOrder?: 'asc' | 'desc';
+    search?: string;
+  }) {
+    return postRepository.findByUserId(options);
   },
 
   async getById(postId: string, userId: string) {

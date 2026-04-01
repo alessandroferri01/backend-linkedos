@@ -23,6 +23,9 @@ model User {
   id                 String             @id @default(uuid())
   email              String             @unique
   passwordHash       String             @map("password_hash")
+  firstName          String?            @map("first_name")
+  lastName           String?            @map("last_name")
+  phone              String?
   role               UserRole           @default(USER)
   subscriptionStatus SubscriptionStatus @default(FREE) @map("subscription_status")
   creditsRemaining   Int                @default(5) @map("credits_remaining")

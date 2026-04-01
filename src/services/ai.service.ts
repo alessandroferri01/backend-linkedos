@@ -10,7 +10,14 @@ interface GeneratePostInput {
   tone?: string;
   targetAudience?: string;
   writingStyle?: string;
+  length?: 'short' | 'medium' | 'long';
 }
+
+const LENGTH_CONFIG = {
+  short:  { words: '100-200', tokens: 600 },
+  medium: { words: '200-350', tokens: 1000 },
+  long:   { words: '350-500', tokens: 1500 },
+} as const;
 
 function buildPrompt(input: GeneratePostInput): string {
   const parts = [
@@ -24,27 +31,33 @@ function buildPrompt(input: GeneratePostInput): string {
   return parts.join('\n');
 }
 
-const SYSTEM_PROMPT = `You are a LinkedIn content strategist specialized in Italian professionals.
+function buildSystemPrompt(length: 'short' | 'medium' | 'long' = 'medium'): string {
+  const { words } = LENGTH_CONFIG[length];
+  return `You are a LinkedIn content strategist specialized in Italian professionals.
 Create engaging LinkedIn posts following these rules:
 - Start with a strong hook (first line is crucial)
 - Use short paragraphs (1-2 sentences max)
 - Include a clear call-to-action at the end
 - Do not use emojis unless explicitly requested
 - Write in Italian unless specified otherwise
-- Keep the post between 150-300 words
+- Keep the post between ${words} words
 - Make the content authentic and relatable`;
+}
 
 export const aiService = {
   async generatePost(input: GeneratePostInput): Promise<string> {
     try {
+      const length = input.length ?? 'medium';
+      const { tokens } = LENGTH_CONFIG[length];
+
       const response = await openai.chat.completions.create({
         model: 'gpt-5.4-nano',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: buildSystemPrompt(length) },
           { role: 'user', content: buildPrompt(input) },
         ],
         temperature: 0.8,
-        max_completion_tokens: 1000,
+        max_completion_tokens: tokens,
       });
 
       const content = response.choices[0]?.message?.content;

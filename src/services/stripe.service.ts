@@ -89,7 +89,6 @@ export const stripeService = {
 
     await userRepository.updateSubscription(userId, {
       subscriptionStatus: 'FREE',
-      creditsRemaining: 5,
     });
 
     logger.info('Subscription cancelled by user', { userId });
@@ -159,7 +158,6 @@ export const stripeService = {
 
         await userRepository.updateSubscription(user.id, {
           subscriptionStatus: 'FREE',
-          creditsRemaining: 5,
         });
         logger.info('Subscription cancelled', { userId: user.id });
         break;

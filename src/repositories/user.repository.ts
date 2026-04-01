@@ -54,4 +54,14 @@ export const userRepository = {
       data: { stripeCustomerId },
     });
   },
+
+  async updateProfile(
+    userId: string,
+    data: { firstName?: string; lastName?: string; phone?: string },
+  ) {
+    return prisma.user.update({
+      where: { id: userId },
+      data,
+    });
+  },
 };

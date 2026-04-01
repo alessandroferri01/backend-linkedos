@@ -5,10 +5,11 @@ import { sendSuccess } from '../utils';
 export const postController = {
   async generate(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { topic } = req.body;
+      const { topic, length } = req.body;
       const post = await postService.generate({
         userId: req.user!.userId,
         topic,
+        length,
       });
       sendSuccess(res, post, 201);
     } catch (error) {
@@ -18,8 +19,23 @@ export const postController = {
 
   async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const posts = await postService.getByUserId(req.user!.userId);
-      sendSuccess(res, posts);
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 10));
+      const sortBy = (['createdAt', 'topic'] as const).includes(req.query.sortBy as 'createdAt' | 'topic')
+        ? (req.query.sortBy as 'createdAt' | 'topic')
+        : 'createdAt';
+      const sortOrder = req.query.sortOrder === 'asc' ? 'asc' : 'desc';
+      const search = typeof req.query.search === 'string' ? req.query.search.trim() : undefined;
+
+      const result = await postService.getByUserId({
+        userId: req.user!.userId,
+        page,
+        limit,
+        sortBy,
+        sortOrder,
+        search: search || undefined,
+      });
+      sendSuccess(res, result);
     } catch (error) {
       next(error);
     }

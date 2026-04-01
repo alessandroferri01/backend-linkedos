@@ -31,4 +31,14 @@ export const authController = {
       next(error);
     }
   },
+
+  async updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { firstName, lastName, phone } = req.body;
+      const user = await authService.updateProfile(req.user!.userId, { firstName, lastName, phone });
+      sendSuccess(res, user);
+    } catch (error) {
+      next(error);
+    }
+  },
 };
