@@ -1,8 +1,9 @@
 import Stripe from 'stripe';
 import { ENV } from '../config';
 import { userRepository } from '../repositories';
-import { creditService } from './credit.service';
 import { NotFoundError, logger } from '../utils';
+
+const PRO_CREDITS = 30;
 
 const stripe = new Stripe(ENV.STRIPE_SECRET_KEY);
 
@@ -56,7 +57,7 @@ export const stripeService = {
     if (subscriptions.data.length > 0) {
       await userRepository.updateSubscription(userId, {
         subscriptionStatus: 'ACTIVE',
-        creditsRemaining: 100,
+        creditsRemaining: PRO_CREDITS,
       });
       logger.info('Subscription activated via verify endpoint', { userId });
       return { activated: true };
@@ -119,7 +120,7 @@ export const stripeService = {
         if (session.mode === 'subscription' && session.subscription) {
           await userRepository.updateSubscription(userId, {
             subscriptionStatus: 'ACTIVE',
-            creditsRemaining: 100,
+            creditsRemaining: PRO_CREDITS,
           });
           logger.info('Subscription activated via checkout.session.completed', { userId });
         }
@@ -139,7 +140,7 @@ export const stripeService = {
         if (subscription.status === 'active') {
           await userRepository.updateSubscription(user.id, {
             subscriptionStatus: 'ACTIVE',
-            creditsRemaining: 100,
+            creditsRemaining: PRO_CREDITS,
           });
           logger.info('Subscription activated', { userId: user.id });
         } else if (subscription.status === 'past_due') {
@@ -160,6 +161,25 @@ export const stripeService = {
           subscriptionStatus: 'FREE',
         });
         logger.info('Subscription cancelled', { userId: user.id });
+        break;
+      }
+
+      case 'invoice.paid': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId = invoice.customer as string;
+        // Skip the first invoice (subscription creation) — credits are already set
+        if (invoice.billing_reason === 'subscription_cycle') {
+          const user = await userRepository.findByStripeCustomerId(customerId);
+          if (!user) {
+            logger.warn('Stripe webhook: user not found for customer', { customerId });
+            return;
+          }
+          await userRepository.updateSubscription(user.id, {
+            subscriptionStatus: 'ACTIVE',
+            creditsRemaining: PRO_CREDITS,
+          });
+          logger.info('Monthly credits reset via invoice.paid', { userId: user.id });
+        }
         break;
       }
 

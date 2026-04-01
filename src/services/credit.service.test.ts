@@ -83,12 +83,12 @@ describe('creditService', () => {
       expect(mockUpdateCredits).toHaveBeenCalledWith('user-1', 5);
     });
 
-    it('should reset to 100 for ACTIVE users', async () => {
+    it('should reset to 30 for ACTIVE users', async () => {
       mockFindById.mockResolvedValue({ ...BASE_USER, subscriptionStatus: 'ACTIVE' });
 
       await creditService.resetMonthlyCredits('user-1');
 
-      expect(mockUpdateCredits).toHaveBeenCalledWith('user-1', 100);
+      expect(mockUpdateCredits).toHaveBeenCalledWith('user-1', 30);
     });
 
     it('should throw NotFoundError if user does not exist', async () => {

@@ -2,7 +2,7 @@ import { userRepository } from '../repositories';
 import { BadRequestError, NotFoundError } from '../utils';
 
 const FREE_CREDITS = 5;
-const PRO_CREDITS = 100;
+const PRO_CREDITS = 30;
 
 export const creditService = {
   async checkCredits(userId: string): Promise<number> {
