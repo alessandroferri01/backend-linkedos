@@ -19,14 +19,13 @@ export const postService = {
     }
 
     const profile = await profileRepository.findByUserId(input.userId);
+    const user = await userRepository.findById(input.userId);
+    const isPro = user?.subscriptionStatus === 'ACTIVE';
 
     // Only Pro users can use length other than medium
     let length = input.length ?? 'medium';
-    if (length !== 'medium') {
-      const user = await userRepository.findById(input.userId);
-      if (user?.subscriptionStatus !== 'ACTIVE') {
-        length = 'medium';
-      }
+    if (length !== 'medium' && !isPro) {
+      length = 'medium';
     }
 
     const content = await aiService.generatePost({
@@ -36,6 +35,7 @@ export const postService = {
       targetAudience: profile?.targetAudience ?? undefined,
       writingStyle: profile?.writingStyle ?? undefined,
       length,
+      isPro,
     });
 
     const post = await postRepository.create({

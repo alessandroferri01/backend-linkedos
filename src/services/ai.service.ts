@@ -11,6 +11,7 @@ interface GeneratePostInput {
   targetAudience?: string;
   writingStyle?: string;
   length?: 'short' | 'medium' | 'long';
+  isPro?: boolean;
 }
 
 const LENGTH_CONFIG = {
@@ -50,8 +51,10 @@ export const aiService = {
       const length = input.length ?? 'medium';
       const { tokens } = LENGTH_CONFIG[length];
 
+      const model = input.isPro ? 'gpt-5.4-mini' : 'gpt-5.4-nano';
+
       const response = await openai.chat.completions.create({
-        model: 'gpt-5.4-nano',
+        model,
         messages: [
           { role: 'system', content: buildSystemPrompt(length) },
           { role: 'user', content: buildPrompt(input) },

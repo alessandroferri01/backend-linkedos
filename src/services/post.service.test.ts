@@ -24,6 +24,7 @@ const mockProfileFindByUserId = vi.fn();
 const mockPostCreate = vi.fn();
 const mockPostFindById = vi.fn();
 const mockPostDelete = vi.fn();
+const mockUserFindById = vi.fn();
 
 vi.mock('../repositories', () => ({
   postRepository: {
@@ -34,6 +35,9 @@ vi.mock('../repositories', () => ({
   },
   profileRepository: {
     findByUserId: (...args: unknown[]) => mockProfileFindByUserId(...args),
+  },
+  userRepository: {
+    findById: (...args: unknown[]) => mockUserFindById(...args),
   },
 }));
 
@@ -53,6 +57,7 @@ describe('postService', () => {
   describe('generate', () => {
     it('should generate a post successfully', async () => {
       mockCheckCredits.mockResolvedValue(5);
+      mockUserFindById.mockResolvedValue({ subscriptionStatus: 'INACTIVE' });
       mockProfileFindByUserId.mockResolvedValue({
         profession: 'Developer',
         tone: 'professional',
@@ -86,6 +91,7 @@ describe('postService', () => {
 
     it('should work with no profile data', async () => {
       mockCheckCredits.mockResolvedValue(3);
+      mockUserFindById.mockResolvedValue({ subscriptionStatus: 'INACTIVE' });
       mockProfileFindByUserId.mockResolvedValue(null);
       mockGeneratePost.mockResolvedValue('Content');
       mockPostCreate.mockResolvedValue(MOCK_POST);
