@@ -37,6 +37,7 @@ export const authService = {
         phone: user.phone,
         subscriptionStatus: user.subscriptionStatus,
         creditsRemaining: user.creditsRemaining,
+        linkedinConnected: user.linkedinConnected,
       },
       token,
     };
@@ -64,6 +65,7 @@ export const authService = {
         phone: user.phone,
         subscriptionStatus: user.subscriptionStatus,
         creditsRemaining: user.creditsRemaining,
+        linkedinConnected: user.linkedinConnected,
       },
       token,
     };
@@ -82,6 +84,7 @@ export const authService = {
       phone: user.phone,
       subscriptionStatus: user.subscriptionStatus,
       creditsRemaining: user.creditsRemaining,
+      linkedinConnected: user.linkedinConnected,
     };
   },
 
@@ -98,6 +101,7 @@ export const authService = {
       phone: user.phone,
       subscriptionStatus: user.subscriptionStatus,
       creditsRemaining: user.creditsRemaining,
+      linkedinConnected: user.linkedinConnected,
     };
   },
 

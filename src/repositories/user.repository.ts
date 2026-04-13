@@ -64,4 +64,30 @@ export const userRepository = {
       data,
     });
   },
+
+  async findByLinkedinId(linkedinId: string) {
+    return prisma.user.findUnique({ where: { linkedinId } });
+  },
+
+  async updateLinkedin(
+    userId: string,
+    data: {
+      linkedinId?: string | null;
+      linkedinAccessToken?: string | null;
+      linkedinRefreshToken?: string | null;
+      linkedinTokenExpiresAt?: Date | null;
+      linkedinConnected: boolean;
+    },
+  ) {
+    const updateData: Record<string, unknown> = { linkedinConnected: data.linkedinConnected };
+    if (data.linkedinId !== undefined) updateData.linkedinId = data.linkedinId;
+    if (data.linkedinAccessToken !== undefined) updateData.linkedinAccessToken = data.linkedinAccessToken;
+    if (data.linkedinRefreshToken !== undefined) updateData.linkedinRefreshToken = data.linkedinRefreshToken;
+    if (data.linkedinTokenExpiresAt !== undefined) updateData.linkedinTokenExpiresAt = data.linkedinTokenExpiresAt;
+
+    return prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+  },
 };

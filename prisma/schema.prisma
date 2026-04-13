@@ -30,8 +30,16 @@ model User {
   subscriptionStatus SubscriptionStatus @default(FREE) @map("subscription_status")
   creditsRemaining   Int                @default(5) @map("credits_remaining")
   stripeCustomerId   String?            @unique @map("stripe_customer_id")
-  createdAt          DateTime           @default(now()) @map("created_at")
-  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  // LinkedIn OAuth
+  linkedinId             String?  @unique @map("linkedin_id")
+  linkedinAccessToken    String?  @map("linkedin_access_token")
+  linkedinRefreshToken   String?  @map("linkedin_refresh_token")
+  linkedinTokenExpiresAt DateTime? @map("linkedin_token_expires_at")
+  linkedinConnected      Boolean  @default(false) @map("linkedin_connected")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   profile Profile?
   posts   Post[]
@@ -57,7 +65,13 @@ model Post {
   userId           String   @map("user_id")
   topic            String
   generatedContent String   @map("generated_content") @db.Text
-  createdAt        DateTime @default(now()) @map("created_at")
+
+  // LinkedIn publishing
+  linkedinPostUrn     String?   @unique @map("linkedin_post_urn")
+  publishedToLinkedin Boolean   @default(false) @map("published_to_linkedin")
+  publishedAt         DateTime? @map("published_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

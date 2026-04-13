@@ -60,4 +60,19 @@ export const postRepository = {
   async delete(id: string) {
     return prisma.post.delete({ where: { id } });
   },
+
+  async update(id: string, data: Record<string, unknown>) {
+    return prisma.post.update({ where: { id }, data });
+  },
+
+  async updateLinkedinPublish(id: string, linkedinPostUrn: string) {
+    return prisma.post.update({
+      where: { id },
+      data: {
+        linkedinPostUrn,
+        publishedToLinkedin: true,
+        publishedAt: new Date(),
+      },
+    });
+  },
 };

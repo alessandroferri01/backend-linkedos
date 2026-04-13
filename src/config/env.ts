@@ -16,6 +16,12 @@ export const ENV = {
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY!,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET!,
 
+  LINKEDIN_CLIENT_ID: process.env.LINKEDIN_CLIENT_ID!,
+  LINKEDIN_CLIENT_SECRET: process.env.LINKEDIN_CLIENT_SECRET!,
+  LINKEDIN_REDIRECT_URI: process.env.LINKEDIN_REDIRECT_URI || 'http://localhost:4000/api/linkedin/callback',
+
+  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3001',
+
   RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10),
   RATE_LIMIT_MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
 } as const;
@@ -26,6 +32,8 @@ const REQUIRED_VARS = [
   'OPENAI_API_KEY',
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
+  'LINKEDIN_CLIENT_ID',
+  'LINKEDIN_CLIENT_SECRET',
 ] as const;
 
 export function validateEnv(): void {
