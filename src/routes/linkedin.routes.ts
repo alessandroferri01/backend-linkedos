@@ -12,6 +12,6 @@ router.get('/status', authenticate, linkedinController.status);
 
 // Post operations
 router.post('/publish/:postId', authenticate, linkedinController.publishPost);
-router.get('/stats/:postId', authenticate, linkedinController.getPostStats);
+router.post('/verify', authenticate, linkedinController.verifyPosts);
 
 export default router;

@@ -25,12 +25,6 @@ interface LinkedInUserInfo {
   picture?: string;
 }
 
-interface LinkedInPostStats {
-  likeCount: number;
-  commentCount: number;
-  shareCount: number;
-}
-
 export const linkedinService = {
   getAuthorizationUrl(state: string): string {
     const params = new URLSearchParams({
@@ -180,7 +174,7 @@ export const linkedinService = {
     return tokens.access_token;
   },
 
-  async publishPost(userId: string, postId: string): Promise<{ linkedinPostUrn: string }> {
+  async publishPost(userId: string, postId: string, content?: string): Promise<{ linkedinPostUrn: string }> {
     const user = await userRepository.findById(userId);
     if (!user) throw new UnauthorizedError('Utente non trovato');
 
@@ -199,7 +193,7 @@ export const linkedinService = {
       author: `urn:li:person:${user.linkedinId}`,
       lifecycleState: 'PUBLISHED',
       visibility: 'PUBLIC',
-      commentary: post.generatedContent,
+      commentary: content || post.generatedContent,
       distribution: {
         feedDistribution: 'MAIN_FEED',
         targetEntities: [],
@@ -219,13 +213,121 @@ export const linkedinService = {
     });
 
     if (!res.ok) {
-      const error = await res.text();
-      logger.error('LinkedIn post publish failed', { error, postId, userId });
+      const errorText = await res.text();
+      logger.error('LinkedIn post publish failed', { error: errorText, postId, userId });
+
+      // Handle duplicate post — LinkedIn already has this content
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.status === 422 && errorData.errorDetails?.inputErrors?.some(
+          (e: { code: string }) => e.code === 'DUPLICATE_POST',
+        )) {
+          const urnMatch = errorData.message?.match(/(urn:li:share:\d+|urn:li:ugcPost:\d+)/);
+          if (urnMatch) {
+            const existingUrn = urnMatch[1];
+            // Verify the duplicate post still exists on LinkedIn
+            const checkRes = await fetch(
+              `${LINKEDIN_API_BASE}/rest/posts/${encodeURIComponent(existingUrn)}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  'LinkedIn-Version': LINKEDIN_API_VERSION,
+                  'X-Restli-Protocol-Version': '2.0.0',
+                },
+              },
+            );
+            if (checkRes.ok) {
+              await postRepository.updateLinkedinPublish(postId, existingUrn);
+              logger.info('Duplicate post detected, saved existing URN', { postId, existingUrn });
+              return { linkedinPostUrn: existingUrn };
+            }
+            // The duplicate was deleted — LinkedIn still blocks for a while
+            logger.warn('Duplicate detected but original was deleted on LinkedIn', { postId, existingUrn });
+            throw new BadRequestError(
+              'LinkedIn ha rilevato un contenuto duplicato. Modifica leggermente il testo e riprova.',
+            );
+          }
+        }
+      } catch (e) {
+        if (e instanceof BadRequestError) throw e;
+        // Error text wasn't valid JSON — fall through to generic error
+      }
+
       throw new InternalError('Impossibile pubblicare il post su LinkedIn');
     }
 
-    // LinkedIn returns the post URN in the x-restli-id header
-    const postUrn = res.headers.get('x-restli-id') || res.headers.get('x-linkedin-id') || '';
+    // LinkedIn returns the post URN in the x-restli-id header or x-linkedin-id
+    const allHeaders: Record<string, string> = {};
+    res.headers.forEach((value, key) => { allHeaders[key] = value; });
+    logger.info('LinkedIn publish response headers', { headers: allHeaders, status: res.status });
+
+    let postUrn = res.headers.get('x-restli-id') || res.headers.get('x-linkedin-id') || '';
+
+    // Fallback: try Location header (some API versions return the URN there)
+    if (!postUrn) {
+      const location = res.headers.get('location') || '';
+      // Location may contain URL-encoded URN like /rest/posts/urn%3Ali%3Ashare%3A123
+      const decoded = decodeURIComponent(location);
+      const match = decoded.match(/(urn:li:(?:share|ugcPost|activity):\d+)/);
+      if (match) postUrn = match[1];
+    }
+
+    // Fallback: try response body
+    if (!postUrn) {
+      try {
+        const body = await res.text();
+        logger.info('LinkedIn publish response body', { body: body.slice(0, 500) });
+        if (body) {
+          const parsed = JSON.parse(body);
+          postUrn = parsed.id || parsed.value || parsed.urn || '';
+        }
+      } catch {
+        // No body or not JSON — ignore
+      }
+    }
+
+    // If we still don't have the URN, try to find it by querying the user's recent posts
+    if (!postUrn) {
+      logger.warn('No URN from publish response, searching user recent posts', { postId, userId });
+      try {
+        const authorUrn = `urn:li:person:${user.linkedinId}`;
+        const searchRes = await fetch(
+          `${LINKEDIN_API_BASE}/rest/posts?author=${encodeURIComponent(authorUrn)}&q=author&count=5&sortBy=LAST_MODIFIED`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'LinkedIn-Version': LINKEDIN_API_VERSION,
+              'X-Restli-Protocol-Version': '2.0.0',
+            },
+          },
+        );
+        if (searchRes.ok) {
+          const searchData = await searchRes.json() as { elements?: Array<{ id?: string; commentary?: string }> };
+          logger.info('LinkedIn recent posts search result', {
+            count: searchData.elements?.length ?? 0,
+            posts: searchData.elements?.map(e => ({ id: e.id, commentary: e.commentary?.slice(0, 80) })),
+          });
+          const publishedContent = content || post.generatedContent;
+          const match = searchData.elements?.find(e =>
+            e.commentary && publishedContent.startsWith(e.commentary.slice(0, 100)),
+          );
+          if (match?.id) {
+            postUrn = match.id;
+            logger.info('Found post URN via search', { postUrn });
+          }
+        } else {
+          logger.warn('LinkedIn recent posts search failed', { status: searchRes.status });
+        }
+      } catch (searchErr) {
+        logger.error('Error searching for post URN', { error: String(searchErr) });
+      }
+    }
+
+    if (!postUrn) {
+      logger.error('LinkedIn publish succeeded (HTTP ' + res.status + ') but no URN found', {
+        postId, userId, headers: allHeaders,
+      });
+    }
 
     await postRepository.updateLinkedinPublish(postId, postUrn);
 
@@ -234,69 +336,55 @@ export const linkedinService = {
     return { linkedinPostUrn: postUrn };
   },
 
-  async getPostStats(userId: string, postId: string): Promise<LinkedInPostStats> {
-    const post = await postRepository.findById(postId);
-    if (!post || post.userId !== userId) {
-      throw new BadRequestError('Post non trovato');
-    }
-
-    if (!post.publishedToLinkedin || !post.linkedinPostUrn) {
-      throw new BadRequestError('Questo post non è stato pubblicato su LinkedIn');
-    }
+  async verifyPublishedPosts(userId: string, postIds: string[]): Promise<string[]> {
+    if (postIds.length === 0) return [];
 
     const accessToken = await this.getValidAccessToken(userId);
+    const removedIds: string[] = [];
 
-    const encodedUrn = encodeURIComponent(post.linkedinPostUrn);
+    for (const postId of postIds) {
+      const post = await postRepository.findById(postId);
+      if (!post || post.userId !== userId || !post.publishedToLinkedin || !post.linkedinPostUrn) {
+        continue;
+      }
 
-    // Fetch social actions (likes, comments, etc.)
-    const res = await fetch(
-      `${LINKEDIN_API_BASE}/rest/socialActions/${encodedUrn}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'LinkedIn-Version': LINKEDIN_API_VERSION,
-          'X-Restli-Protocol-Version': '2.0.0',
-        },
-      },
-    );
-
-    if (!res.ok) {
-      // If social actions endpoint fails, try socialMetadata
-      const metaRes = await fetch(
-        `${LINKEDIN_API_BASE}/rest/socialMetadata/${encodedUrn}`,
-        {
+      try {
+        const encodedUrn = encodeURIComponent(post.linkedinPostUrn);
+        const res = await fetch(`${LINKEDIN_API_BASE}/rest/posts/${encodedUrn}`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'LinkedIn-Version': LINKEDIN_API_VERSION,
             'X-Restli-Protocol-Version': '2.0.0',
           },
-        },
-      );
-
-      if (!metaRes.ok) {
-        logger.warn('LinkedIn post not found, marking as unpublished', { postId });
-        // Post was likely deleted on LinkedIn — reset the flag
-        await postRepository.update(postId, {
-          publishedToLinkedin: false,
-          linkedinPostUrn: null,
-          publishedAt: null,
         });
-        throw new BadRequestError('Il post è stato eliminato da LinkedIn');
-      }
 
-      const meta = await metaRes.json() as Record<string, any>;
-      return {
-        likeCount: meta.totalShareStatistics?.likeCount ?? meta.likeCount ?? 0,
-        commentCount: meta.totalShareStatistics?.commentCount ?? meta.commentCount ?? 0,
-        shareCount: meta.totalShareStatistics?.shareCount ?? meta.shareCount ?? 0,
-      };
+        if (!res.ok) {
+          // Post no longer exists on LinkedIn
+          await postRepository.update(postId, {
+            publishedToLinkedin: false,
+            linkedinPostUrn: null,
+            publishedAt: null,
+          });
+          removedIds.push(postId);
+          logger.info('LinkedIn post no longer exists, unmarked', { postId, status: res.status });
+          continue;
+        }
+
+        const data = await res.json() as { lifecycleState?: string };
+        if (data.lifecycleState && data.lifecycleState !== 'PUBLISHED') {
+          await postRepository.update(postId, {
+            publishedToLinkedin: false,
+            linkedinPostUrn: null,
+            publishedAt: null,
+          });
+          removedIds.push(postId);
+          logger.info('LinkedIn post not in PUBLISHED state, unmarked', { postId, lifecycleState: data.lifecycleState });
+        }
+      } catch (err) {
+        logger.error('Error verifying LinkedIn post', { postId, error: String(err) });
+      }
     }
 
-    const data = await res.json() as Record<string, any>;
-    return {
-      likeCount: data.likesSummary?.totalLikes ?? 0,
-      commentCount: data.commentsSummary?.totalFirstLevelComments ?? 0,
-      shareCount: data.sharesSummary?.totalShares ?? 0,
-    };
+    return removedIds;
   },
 };

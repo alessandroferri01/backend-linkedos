@@ -77,18 +77,23 @@ export const linkedinController = {
   async publishPost(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const postId = req.params.postId as string;
-      const result = await linkedinService.publishPost(req.user!.userId, postId);
+      const content = req.body?.content as string | undefined;
+      const result = await linkedinService.publishPost(req.user!.userId, postId, content);
       sendSuccess(res, result);
     } catch (error) {
       next(error);
     }
   },
 
-  async getPostStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async verifyPosts(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const postId = req.params.postId as string;
-      const stats = await linkedinService.getPostStats(req.user!.userId, postId);
-      sendSuccess(res, stats);
+      const postIds = req.body?.postIds as string[];
+      if (!Array.isArray(postIds)) {
+        sendSuccess(res, { removedIds: [] });
+        return;
+      }
+      const removedIds = await linkedinService.verifyPublishedPosts(req.user!.userId, postIds);
+      sendSuccess(res, { removedIds });
     } catch (error) {
       next(error);
     }
